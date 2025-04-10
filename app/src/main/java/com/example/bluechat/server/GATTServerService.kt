@@ -50,6 +50,12 @@ class GATTServerService : Service() {
         // a service and an activity/view
         val serverLogsState: MutableStateFlow<String> = MutableStateFlow("")
         val isServerRunning = MutableStateFlow(false)
+        
+        // Store message history
+        val messageHistory = MutableStateFlow<List<ChatMessage>>(emptyList())
+        
+        // For backward compatibility
+        val lastReceivedMessage = MutableStateFlow("")
 
         private const val CHANNEL = "gatt_server_channel"
     }
@@ -207,8 +213,29 @@ class GATTServerService : Service() {
             offset: Int,
             value: ByteArray,
         ) {
-            serverLogsState.value += "Characteristic Write request: $requestId\n" +
-                    "Data: ${String(value)} (offset $offset)\n"
+            val message = String(value)
+            val timestamp = System.currentTimeMillis()
+            
+            // Use a more user-friendly name for the client
+            val clientName = if (device.name != null && device.name.isNotEmpty()) {
+                device.name
+            } else {
+                // If device name is not available, use "Unknown" instead of the address
+                "Unknown"
+            }
+            
+            val chatMessage = ChatMessage(clientName, message, timestamp)
+            
+            // Add to message history
+            val currentHistory = messageHistory.value.toMutableList()
+            currentHistory.add(chatMessage)
+            messageHistory.value = currentHistory
+            
+            // Update last message for backward compatibility
+            lastReceivedMessage.value = message
+            
+            serverLogsState.value += "Message received from ${clientName}: $message\n"
+            
             // Here you should apply the write of the characteristic and notify connected
             // devices that it changed
 
@@ -232,7 +259,9 @@ class GATTServerService : Service() {
         ) {
             super.onCharacteristicReadRequest(device, requestId, offset, characteristic)
             serverLogsState.value += "Characteristic Read request: $requestId (offset $offset)\n"
-            val data = serverLogsState.value.toByteArray()
+            
+            // Send back the last received message
+            val data = lastReceivedMessage.value.toByteArray()
             val response = data.copyOfRange(offset, data.size)
             server.sendResponse(
                 device,
@@ -259,4 +288,11 @@ class GATTServerService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    // Data class to represent a chat message
+    data class ChatMessage(
+        val sender: String,
+        val content: String,
+        val timestamp: Long
+    )
 }

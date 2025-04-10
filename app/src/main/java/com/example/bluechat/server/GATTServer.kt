@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,11 +22,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.bluechat.ble.operations.BluetoothSampleBox
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 
 
 @RequiresApi(Build.VERSION_CODES.M)
@@ -56,7 +61,10 @@ internal fun GATTServerScreen() {
     var enableAdvertising by remember(enableServer) {
         mutableStateOf(enableServer)
     }
+    var showLogs by remember { mutableStateOf(false) }
     val logs by GATTServerService.serverLogsState.collectAsState()
+    val lastMessage by GATTServerService.lastReceivedMessage.collectAsState()
+    val messageHistory by GATTServerService.messageHistory.collectAsState()
 
     LaunchedEffect(enableServer, enableAdvertising) {
         val intent = Intent(context, GATTServerService::class.java).apply {
@@ -93,6 +101,90 @@ internal fun GATTServerScreen() {
                 Text(text = if (enableAdvertising) "Stop Advertising" else "Start Advertising")
             }
         }
-        Text(text = logs)
+        
+        // Chat section
+        if (enableServer) {
+            Text(
+                text = "Chat Messages", 
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+            )
+            
+            if (messageHistory.isNotEmpty()) {
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                ) {
+                    items(messageHistory) { message ->
+                        androidx.compose.material3.Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = message.sender,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = formatTimestamp(message.timestamp),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                                Text(
+                                    text = message.content,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = "No messages received yet",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            
+            // Logs toggle button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Server Logs", 
+                    style = MaterialTheme.typography.titleMedium
+                )
+                
+                androidx.compose.material3.Switch(
+                    checked = showLogs,
+                    onCheckedChange = { showLogs = it }
+                )
+            }
+            
+            // Only show logs if toggle is enabled
+            if (showLogs) {
+                Text(text = logs)
+            }
+        }
     }
+}
+
+// Helper function to format timestamp
+private fun formatTimestamp(timestamp: Long): String {
+    val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date(timestamp))
 }
