@@ -49,8 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import com.example.bluechat.server.GATTServerService.Companion.SERVICE_UUID
 import kotlinx.coroutines.delay
-import java.util.UUID
 
 @SuppressLint("MissingPermission")
 @RequiresApi(Build.VERSION_CODES.M)
@@ -104,7 +104,6 @@ internal fun FindDevicesScreen(onConnect: (BluetoothDevice) -> Unit) {
 
                 // If we find our GATT server sample let's highlight it
                 val serviceUuids = scanResult.scanRecord?.serviceUuids.orEmpty()
-                val SERVICE_UUID: UUID = UUID.fromString("00002222-0000-1000-8000-00805f9b34fb")
                 if (serviceUuids.contains(ParcelUuid(SERVICE_UUID))) {
                     if (!sampleServerDevices.contains(scanResult.device)) {
                         sampleServerDevices.add(scanResult.device)
