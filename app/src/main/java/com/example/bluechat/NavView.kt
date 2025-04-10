@@ -24,8 +24,8 @@ fun NavView() {
     val navController = rememberNavController()
 
     AppTheme {
-        NavHost(navController = navController, startDestination = "frontPage") {
-            composable("frontPage") {
+        NavHost(navController = navController, startDestination = NavigationRoutes.FRONT_PAGE) {
+            composable(NavigationRoutes.FRONT_PAGE) {
                 FrontPageScreen(
                     onGetStartedClick = {
                         navController.navigate(MainScreen) {
