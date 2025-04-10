@@ -2,7 +2,9 @@ package com.example.bluechat
 
 import android.os.Build
 import androidx.compose.runtime.Composable
+import com.example.bluechat.ble.operations.ConnectGATTSample
 import com.example.bluechat.ble.operations.FindBLEDevices
+import com.example.bluechat.server.GATTServerSample
 import com.example.bluechat.shared.MinSdkBox
 
 interface SampleDemo : CatalogItem {
@@ -46,20 +48,7 @@ val BLE_OPERATIONS by lazy {
             content = {
                 MinSdkBox(minSdk = Build.VERSION_CODES.M) {
                     //noinspection NewApi
-//                    GATTServerSample()
-                }
-            },
-        ),
-        ComposableSampleDemo(
-            id = "scan-with-ble-intent",
-            name = "Scan with BLE Intent",
-            description = "This samples shows how to use the BLE intent to scan for devices",
-            documentation = "https://developer.android.com/reference/android/bluetooth/le/BluetoothLeScanner#startScan(java.util.List%3Candroid.bluetooth.le.ScanFilter%3E,%20android.bluetooth.le.ScanSettings,%20android.app.PendingIntent)",
-            tags = listOf("Bluetooth"),
-            content = {
-                MinSdkBox(minSdk = Build.VERSION_CODES.O) {
-                    //noinspection NewApi
-//                    BLEScanIntentSample()
+                    GATTServerSample()
                 }
             },
         ),
@@ -72,7 +61,7 @@ val BLE_OPERATIONS by lazy {
             content = {
                 MinSdkBox(minSdk = Build.VERSION_CODES.M) {
                     //noinspection NewApi
-//                    ConnectGATTSample()
+                    ConnectGATTSample()
                 }
             },
         ),
