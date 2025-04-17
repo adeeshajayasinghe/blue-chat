@@ -83,7 +83,7 @@ fun NavView() {
             ) { backStackEntry ->
                 val arguments = requireNotNull(backStackEntry.arguments)
                 val sampleDemoId = requireNotNull(arguments.getString(NavigationRoutes.SAMPLE_DEMO_ID))
-                val sampleDemo = BLE_OPERATIONS.getValue(sampleDemoId) as ComposableSampleDemo
+                val sampleDemo = BLE_OPERATIONS.getValue(sampleDemoId)
 
                 Scaffold(
                     topBar = { TopAppBar(title = { Text(sampleDemo.name) }) },

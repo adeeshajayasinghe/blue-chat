@@ -31,6 +31,10 @@ import com.example.bluechat.ble.operations.BluetoothSampleBox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import com.example.bluechat.BlueChatApplication
+import com.example.bluechat.data.Message
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
 
 @RequiresApi(Build.VERSION_CODES.M)
@@ -55,6 +59,9 @@ fun GATTServerSample() {
 @Composable
 internal fun GATTServerScreen() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val repository = (context.applicationContext as BlueChatApplication).repository
+    
     var enableServer by remember {
         mutableStateOf(GATTServerService.isServerRunning.value)
     }
@@ -63,8 +70,9 @@ internal fun GATTServerScreen() {
     }
     var showLogs by remember { mutableStateOf(false) }
     val logs by GATTServerService.serverLogsState.collectAsState()
-    val lastMessage by GATTServerService.lastReceivedMessage.collectAsState()
-    val messageHistory by GATTServerService.messageHistory.collectAsState()
+    
+    // Get messages from database
+    val messages by repository.allMessages.collectAsState(initial = emptyList())
 
     LaunchedEffect(enableServer, enableAdvertising) {
         val intent = Intent(context, GATTServerService::class.java).apply {
@@ -110,13 +118,13 @@ internal fun GATTServerScreen() {
                 modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
             )
             
-            if (messageHistory.isNotEmpty()) {
-                androidx.compose.foundation.lazy.LazyColumn(
+            if (messages.isNotEmpty()) {
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
                 ) {
-                    items(messageHistory) { message ->
+                    items(messages) { message ->
                         androidx.compose.material3.Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -130,12 +138,12 @@ internal fun GATTServerScreen() {
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = message.sender,
+                                        text = if (message.isSent) "Server" else message.senderId,
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                     Text(
-                                        text = formatTimestamp(message.timestamp),
+                                        text = formatTimestamp(message.timestamp.time),
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 }
@@ -154,6 +162,18 @@ internal fun GATTServerScreen() {
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
+            }
+            
+            // Add clear messages button
+            Button(
+                onClick = { 
+                    scope.launch {
+                        repository.deleteAllMessages()
+                    }
+                },
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                Text("Clear Messages")
             }
             
             // Logs toggle button
