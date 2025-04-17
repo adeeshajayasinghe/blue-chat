@@ -27,16 +27,20 @@ import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.bluechat.ble.operations.toConnectionStateString
+import com.example.bluechat.data.Message
+import com.example.bluechat.data.ChatRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import java.util.Date
 import java.util.UUID
 
 @RequiresApi(Build.VERSION_CODES.M)
 class GATTServerService : Service() {
     companion object {
-
         // Random UUID for our service known between the client and server to allow communication
         val SERVICE_UUID: UUID = UUID.fromString("00002222-0000-1000-8000-00805f9b34fb")
 
@@ -50,9 +54,6 @@ class GATTServerService : Service() {
         // a service and an activity/view
         val serverLogsState: MutableStateFlow<String> = MutableStateFlow("")
         val isServerRunning = MutableStateFlow(false)
-        
-        // Store message history
-        val messageHistory = MutableStateFlow<List<ChatMessage>>(emptyList())
         
         // For backward compatibility
         val lastReceivedMessage = MutableStateFlow("")
@@ -78,11 +79,15 @@ class GATTServerService : Service() {
         }
 
     private lateinit var server: BluetoothGattServer
+    private lateinit var repository: ChatRepository
 
     private val scope = CoroutineScope(SupervisorJob())
 
     override fun onCreate() {
         super.onCreate()
+        // Initialize repository
+        repository = (application as com.example.bluechat.BlueChatApplication).repository
+        
         // If we are missing permission stop the service
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
@@ -198,10 +203,21 @@ class GATTServerService : Service() {
             status: Int,
             newState: Int,
         ) {
-            serverLogsState.value += "Connection state change: " +
-                    "${newState.toConnectionStateString()}.\n" +
-                    "> New device: ${device.name} ${device.address}\n"
-            // You should keep a list of connected device to manage them
+            // Log device details when connection state changes
+            val deviceName = device.name
+            val deviceAddress = device.address
+            val deviceType = device.type
+            val deviceBondState = device.bondState
+            
+            serverLogsState.value += """
+                Connection state change: ${newState.toConnectionStateString()}
+                Device details:
+                - Name: ${deviceName ?: "null"}
+                - Address: $deviceAddress
+                - Type: $deviceType
+                - Bond State: $deviceBondState
+                - Status: $status
+            """.trimIndent() + "\n"
         }
 
         override fun onCharacteristicWriteRequest(
@@ -214,27 +230,35 @@ class GATTServerService : Service() {
             value: ByteArray,
         ) {
             val message = String(value)
-            val timestamp = System.currentTimeMillis()
+            val timestamp = Date()
             
-            // Use a more user-friendly name for the client
-            val clientName = if (device.name != null && device.name.isNotEmpty()) {
-                device.name
-            } else {
-                // If device name is not available, use "Unknown" instead of the address
-                "Unknown"
+            // Log device details when receiving a message
+            val deviceName = device.name
+            val deviceAddress = device.address
+            
+            serverLogsState.value += """
+                Message received from device:
+                - Name: ${deviceName ?: "null"}
+                - Address: $deviceAddress
+                - Message: $message
+            """.trimIndent() + "\n"
+            
+            // Store message in database
+            scope.launch(Dispatchers.IO) {
+                val messageEntity = Message(
+                    content = message,
+                    senderId = deviceAddress,
+                    receiverId = "server",
+                    timestamp = timestamp,
+                    isSent = false
+                )
+                repository.insertMessage(messageEntity)
             }
-            
-            val chatMessage = ChatMessage(clientName, message, timestamp)
-            
-            // Add to message history
-            val currentHistory = messageHistory.value.toMutableList()
-            currentHistory.add(chatMessage)
-            messageHistory.value = currentHistory
             
             // Update last message for backward compatibility
             lastReceivedMessage.value = message
             
-            serverLogsState.value += "Message received from ${clientName}: $message\n"
+            serverLogsState.value += "Message received from ${deviceName ?: deviceAddress}: $message\n"
             
             // Here you should apply the write of the characteristic and notify connected
             // devices that it changed
@@ -288,11 +312,4 @@ class GATTServerService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
-
-    // Data class to represent a chat message
-    data class ChatMessage(
-        val sender: String,
-        val content: String,
-        val timestamp: Long
-    )
 }
