@@ -379,7 +379,7 @@ private fun formatTimestamp(timestamp: Long): String {
  * Writes the provided message to the server characteristic
  */
 @SuppressLint("MissingPermission")
-private fun sendData(
+fun sendData(
     gatt: BluetoothGatt,
     characteristic: BluetoothGattCharacteristic,
     message: String
@@ -408,7 +408,7 @@ internal fun Int.toConnectionStateString() = when (this) {
     else -> "N/A"
 }
 
-private data class DeviceConnectionState(
+data class DeviceConnectionState(
     val gatt: BluetoothGatt?,
     val connectionState: Int,
     val mtu: Int,
@@ -424,7 +424,7 @@ private data class DeviceConnectionState(
 @SuppressLint("InlinedApi")
 @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
 @Composable
-private fun BLEConnectEffect(
+fun BLEConnectEffect(
     device: BluetoothDevice,
     onStateChange: (DeviceConnectionState) -> Unit,
 ) {

@@ -1,35 +1,60 @@
 package com.example.bluechat.ui
 
-import android.Manifest
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.os.Build
 import android.os.ParcelUuid
+import android.util.Log
 import androidx.annotation.RequiresApi
-import androidx.annotation.RequiresPermission
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.bluechat.BlueChatApplication
+import com.example.bluechat.ble.operations.DeviceConnectionState
+import com.example.bluechat.ble.operations.sendData
 import com.example.bluechat.data.Message
+import com.example.bluechat.server.GATTServerService.Companion.CHARACTERISTIC_UUID
 import com.example.bluechat.server.GATTServerService.Companion.SERVICE_UUID
 import com.example.bluechat.viewmodel.ChatViewModel
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MissingPermission")
@@ -46,10 +71,9 @@ fun ChatHistoryScreen(
     val error by viewModel.error.collectAsState()
     var messageInput by remember { mutableStateOf("") }
     val dateFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-    
-    // State for device online status
+
     var isDeviceOnline by remember { mutableStateOf(false) }
-    var isScanning by remember { mutableStateOf(false) }
+    var connectionState by remember { mutableStateOf<DeviceConnectionState?>(null) }
     val context = LocalContext.current
     val adapter = context.getSystemService(BluetoothManager::class.java).adapter
 
@@ -58,20 +82,8 @@ fun ChatHistoryScreen(
         viewModel.loadMessagesForDeviceName(deviceName)
     }
 
-    // Start scanning for devices
-    LaunchedEffect(Unit) {
-        isScanning = true
-    }
-
-    // Stop scanning when leaving the screen
+    // BLE scanning effect to check if the device is online
     DisposableEffect(Unit) {
-        onDispose {
-            isScanning = false
-        }
-    }
-
-    // BLE scanning effect
-    if (isScanning && adapter != null) {
         val scanSettings = ScanSettings.Builder()
             .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
             .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
@@ -80,21 +92,34 @@ fun ChatHistoryScreen(
         val leScanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 super.onScanResult(callbackType, result)
-                // Check if this is our target device by comparing name and service UUID
-                val isTargetDevice = result.device.name == deviceName && 
-                    result.scanRecord?.serviceUuids?.contains(ParcelUuid(SERVICE_UUID)) == true
-                
+                val isTargetDevice = result.device.name == deviceName &&
+                        result.scanRecord?.serviceUuids?.contains(ParcelUuid(SERVICE_UUID)) == true
+
                 if (isTargetDevice) {
                     isDeviceOnline = true
+                    connectionState = DeviceConnectionState(
+                        gatt = result.device.connectGatt(context, false, object : android.bluetooth.BluetoothGattCallback() {
+                            override fun onConnectionStateChange(gatt: android.bluetooth.BluetoothGatt, status: Int, newState: Int) {
+                                super.onConnectionStateChange(gatt, status, newState)
+                                if (newState == android.bluetooth.BluetoothProfile.STATE_CONNECTED) {
+                                    Log.d("CHAT", "Device connected")
+                                    gatt.discoverServices() // Discover services after connection
+                                } else if (newState == android.bluetooth.BluetoothProfile.STATE_DISCONNECTED) {
+                                    Log.d("CHAT", "Device disconnected")
+                                }
+                            }
+                        }),
+                        connectionState = android.bluetooth.BluetoothProfile.STATE_CONNECTING,
+                        mtu = -1
+                    )
+                    adapter?.bluetoothLeScanner?.stopScan(this)
                 }
             }
         }
 
-        DisposableEffect(scanSettings) {
-            adapter.bluetoothLeScanner.startScan(null, scanSettings, leScanCallback)
-            onDispose {
-                adapter.bluetoothLeScanner.stopScan(leScanCallback)
-            }
+        adapter?.bluetoothLeScanner?.startScan(null, scanSettings, leScanCallback)
+        onDispose {
+            adapter?.bluetoothLeScanner?.stopScan(leScanCallback)
         }
     }
 
@@ -107,9 +132,9 @@ fun ChatHistoryScreen(
                         Text(
                             text = if (isDeviceOnline) "Online" else "Offline",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isDeviceOnline) 
-                                MaterialTheme.colorScheme.primary 
-                            else 
+                            color = if (isDeviceOnline)
+                                MaterialTheme.colorScheme.primary
+                            else
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
@@ -168,28 +193,44 @@ fun ChatHistoryScreen(
                         .weight(1f)
                         .padding(end = 8.dp),
                     placeholder = { Text("Type a message...") },
-                    enabled = isDeviceOnline // Disable input when device is offline
+                    enabled = isDeviceOnline && connectionState?.gatt != null
                 )
 
                 IconButton(
                     onClick = {
-                        if (messageInput.isNotBlank()) {
-                            viewModel.addMessage(
-                                content = messageInput,
-                                senderId = "current_user",
-                                receiverId = deviceId,
-                                deviceName = deviceName,
-                                isSent = true
-                            )
-                            messageInput = ""
+                        if (messageInput.isNotBlank() && connectionState?.gatt != null) {
+                            val services = connectionState?.gatt?.services
+//                            if (services.isNullOrEmpty()) {
+//                                Log.w("CHAT", "Services not yet discovered. Trying to discover now.")
+//                                connectionState?.gatt?.discoverServices()
+//                            }
+
+                            val characteristic = services
+                                ?.find { it.uuid == SERVICE_UUID }
+                                ?.getCharacteristic(CHARACTERISTIC_UUID)
+
+                            if (characteristic != null) {
+                                Log.d("CHAT", "Characteristic found: $characteristic")
+                                sendData(connectionState!!.gatt!!, characteristic, messageInput)
+                                viewModel.addMessage(
+                                    content = messageInput,
+                                    senderId = "current_user",
+                                    receiverId = deviceId,
+                                    deviceName = deviceName,
+                                    isSent = true
+                                )
+                                messageInput = ""
+                            } else {
+                                Log.w("CHAT", "Characteristic not found. Ensure UUIDs match and services are ready.")
+                            }
                         }
                     },
-                    enabled = messageInput.isNotBlank() && isDeviceOnline // Disable send when device is offline
+                    enabled = messageInput.isNotBlank() && isDeviceOnline && connectionState?.gatt != null
                 ) {
                     Icon(
                         imageVector = Icons.Default.Send,
                         contentDescription = "Send",
-                        tint = if (messageInput.isNotBlank() && isDeviceOnline)
+                        tint = if (messageInput.isNotBlank() && isDeviceOnline && connectionState?.gatt != null)
                             MaterialTheme.colorScheme.primary
                         else
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
@@ -201,7 +242,6 @@ fun ChatHistoryScreen(
         // Show error if any
         error?.let { errorMessage ->
             LaunchedEffect(errorMessage) {
-                // Show error message (you might want to use a Snackbar or Toast)
                 viewModel.clearError()
             }
         }
