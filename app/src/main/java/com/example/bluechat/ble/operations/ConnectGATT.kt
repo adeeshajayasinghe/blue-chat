@@ -125,6 +125,7 @@ fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
                     content = it.messageReceived,
                     senderId = device.address,
                     receiverId = "current_user",
+                    deviceName = deviceName,
                     timestamp = Date(),
                     isSent = false
                 )
@@ -232,6 +233,7 @@ fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
                                         content = messageInput,
                                         senderId = "current_user",
                                         receiverId = device.address,
+                                        deviceName = device.name,
                                         timestamp = Date(),
                                         isSent = true
                                     )

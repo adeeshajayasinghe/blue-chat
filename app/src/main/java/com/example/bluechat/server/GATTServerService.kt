@@ -249,6 +249,7 @@ class GATTServerService : Service() {
                     content = message,
                     senderId = deviceAddress,
                     receiverId = "server",
+                    deviceName = deviceName,
                     timestamp = timestamp,
                     isSent = false
                 )

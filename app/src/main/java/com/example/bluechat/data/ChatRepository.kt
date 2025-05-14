@@ -9,6 +9,12 @@ class ChatRepository(private val messageDao: MessageDao) {
         return messageDao.getMessagesWithDevice(deviceId)
     }
 
+    fun getMessagesWithDeviceName(deviceName: String): Flow<List<Message>> {
+        return messageDao.getMessagesWithDeviceName(deviceName)
+    }
+
+    val allDeviceNames: Flow<List<String>> = messageDao.getAllDeviceNames()
+
     suspend fun insertMessage(message: Message) {
         messageDao.insertMessage(message)
     }

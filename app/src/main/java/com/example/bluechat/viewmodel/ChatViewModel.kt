@@ -43,13 +43,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     // Add a new message
-    fun addMessage(content: String, senderId: String, receiverId: String, isSent: Boolean) {
+    fun addMessage(deviceName: String, content: String, senderId: String, receiverId: String, isSent: Boolean) {
         viewModelScope.launch {
             try {
                 val message = Message(
                     content = content,
                     senderId = senderId,
                     receiverId = receiverId,
+                    deviceName = deviceName,
                     timestamp = Date(),
                     isSent = isSent
                 )
