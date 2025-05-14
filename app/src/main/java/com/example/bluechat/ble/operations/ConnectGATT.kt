@@ -56,6 +56,7 @@ import androidx.compose.runtime.collectAsState
 import com.example.bluechat.BlueChatApplication
 import com.example.bluechat.data.Message
 import java.util.Date
+import com.example.bluechat.data.Device
 
 @OptIn(ExperimentalAnimationApi::class)
 @SuppressLint("MissingPermission")
@@ -118,9 +119,24 @@ fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
         // update our state to recompose the UI
         state = it
         
+        // Save device information when connected
+        if (it.connectionState == BluetoothProfile.STATE_CONNECTED) {
+            scope.launch(Dispatchers.IO) {
+                val deviceName = device.name ?: "Unknown Device"
+                val deviceEntity = Device(
+                    name = deviceName,
+                    address = device.address,
+                    lastConnected = System.currentTimeMillis(),
+                    lastMessageTimestamp = null
+                )
+                repository.insertDevice(deviceEntity)
+            }
+        }
+        
         // Add received message to database
         if (it.messageReceived.isNotEmpty()) {
             scope.launch(Dispatchers.IO) {
+                val deviceName = device.name ?: "Unknown Device"
                 val message = Message(
                     content = it.messageReceived,
                     senderId = device.address,
@@ -238,6 +254,13 @@ fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
                                         isSent = true
                                     )
                                     repository.insertMessage(message)
+                                    
+                                    // Update device's last message timestamp
+                                    repository.getDevice(device.address)?.let { existingDevice ->
+                                        repository.insertDevice(existingDevice.copy(
+                                            lastMessageTimestamp = System.currentTimeMillis()
+                                        ))
+                                    }
                                     
                                     messageInput = "" // Clear input after sending
                                 }

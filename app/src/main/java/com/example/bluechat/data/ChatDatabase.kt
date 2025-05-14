@@ -6,10 +6,11 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [Message::class], version = 1)
+@Database(entities = [Message::class, Device::class], version = 4)
 @TypeConverters(Converters::class)
 abstract class ChatDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
+    abstract fun deviceDao(): DeviceDao
 
     companion object {
         @Volatile
