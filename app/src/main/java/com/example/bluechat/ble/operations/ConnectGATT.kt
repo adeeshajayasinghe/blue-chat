@@ -146,6 +146,13 @@ fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
                     isSent = false
                 )
                 repository.insertMessage(message)
+                
+                // Update device's last message timestamp
+                repository.getDevice(deviceName)?.let { existingDevice ->
+                    repository.insertDevice(existingDevice.copy(
+                        lastMessageTimestamp = System.currentTimeMillis()
+                    ))
+                }
             }
         }
     }
