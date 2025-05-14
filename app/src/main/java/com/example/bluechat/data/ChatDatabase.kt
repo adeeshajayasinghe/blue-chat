@@ -22,7 +22,9 @@ abstract class ChatDatabase : RoomDatabase() {
                     context.applicationContext,
                     ChatDatabase::class.java,
                     "chat_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration() // This will recreate tables if version changes
+                .build()
                 INSTANCE = instance
                 instance
             }
