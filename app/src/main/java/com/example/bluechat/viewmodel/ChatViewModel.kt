@@ -42,6 +42,22 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
+    // Load messages for a specific device by name
+    fun loadMessagesForDeviceName(deviceName: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            repository.getMessagesWithDeviceName(deviceName)
+                .catch { e ->
+                    _error.value = e.message ?: "Unknown error"
+                    _isLoading.value = false
+                }
+                .collect { messageList ->
+                    _messages.value = messageList
+                    _isLoading.value = false
+                }
+        }
+    }
+    
     // Add a new message
     fun addMessage(deviceName: String, content: String, senderId: String, receiverId: String, isSent: Boolean) {
         viewModelScope.launch {
