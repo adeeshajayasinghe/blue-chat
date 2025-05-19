@@ -43,10 +43,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     // Load messages for a specific device by name
-    fun loadMessagesForDeviceName(deviceName: String) {
+    fun loadMessagesForDeviceUuid(deviceUuid: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            repository.getMessagesWithDeviceName(deviceName)
+            repository.getMessagesWithDeviceUuid(deviceUuid)
                 .catch { e ->
                     _error.value = e.message ?: "Unknown error"
                     _isLoading.value = false
@@ -59,14 +59,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     // Add a new message
-    fun addMessage(deviceName: String, content: String, senderId: String, receiverId: String, isSent: Boolean) {
+    fun addMessage(deviceUuid: String, content: String, senderId: String, receiverId: String, isSent: Boolean) {
         viewModelScope.launch {
             try {
                 val message = Message(
                     content = content,
                     senderId = senderId,
                     receiverId = receiverId,
-                    deviceName = deviceName,
+                    deviceUuid = deviceUuid,
                     timestamp = Date(),
                     isSent = isSent
                 )

@@ -13,11 +13,9 @@ class ChatRepository(
         return messageDao.getMessagesWithDevice(deviceId)
     }
 
-    fun getMessagesWithDeviceName(deviceName: String): Flow<List<Message>> {
-        return messageDao.getMessagesWithDeviceName(deviceName)
+    fun getMessagesWithDeviceUuid(deviceUuid: String): Flow<List<Message>> {
+        return messageDao.getMessagesWithDeviceUuid(deviceUuid)
     }
-
-    val allDeviceNames: Flow<List<String>> = messageDao.getAllDeviceNames()
 
     suspend fun insertMessage(message: Message) {
         messageDao.insertMessage(message)
@@ -38,8 +36,12 @@ class ChatRepository(
     // Device operations
     val allDevices: Flow<List<Device>> = deviceDao.getAllDevices()
 
-    suspend fun getDevice(name: String): Device? {
-        return deviceDao.getDevice(name)
+    suspend fun getDeviceByName(name: String): Device? {
+        return deviceDao.getDeviceByName(name)
+    }
+
+    suspend fun getDevice(uuid: String): Device? {
+        return deviceDao.getDevice(uuid)
     }
 
     suspend fun insertDevice(device: Device) {

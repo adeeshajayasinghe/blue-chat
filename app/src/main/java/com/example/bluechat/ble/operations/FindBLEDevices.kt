@@ -8,7 +8,6 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.os.Build
-import android.os.ParcelUuid
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
@@ -35,6 +34,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -42,14 +42,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
-import com.example.bluechat.server.GATTServerService.Companion.SERVICE_UUID
+import com.example.bluechat.server.GATTServerService.Companion.BROADCAST_UUID
 import kotlinx.coroutines.delay
 
 @SuppressLint("MissingPermission")
@@ -57,8 +53,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun FindBLEDevices() {
     BluetoothSampleBox {
-        FindDevicesScreen {
-            Log.d("FindDeviceSample", "Name: ${it.name} Address: ${it.address} Type: ${it.type}")
+        FindDevicesScreen { device, broadcastUuid ->
+            Log.d("FindDeviceSample", "Name: ${device.name} Address: ${device.address} Broadcast UUID: $broadcastUuid")
         }
     }
 }
@@ -67,7 +63,7 @@ fun FindBLEDevices() {
 @RequiresApi(Build.VERSION_CODES.M)
 @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
 @Composable
-internal fun FindDevicesScreen(onConnect: (BluetoothDevice) -> Unit) {
+internal fun FindDevicesScreen(onConnect: (BluetoothDevice, String?) -> Unit) {
     val context = LocalContext.current
     val adapter = checkNotNull(context.getSystemService(BluetoothManager::class.java).adapter)
     var scanning by remember {
@@ -75,6 +71,9 @@ internal fun FindDevicesScreen(onConnect: (BluetoothDevice) -> Unit) {
     }
     val devices = remember {
         mutableStateListOf<BluetoothDevice>()
+    }
+    val deviceBroadcastUuids = remember {
+        mutableStateMapOf<String, String>()
     }
     val pairedDevices = remember {
         // Get a list of previously paired devices
@@ -93,23 +92,23 @@ internal fun FindDevicesScreen(onConnect: (BluetoothDevice) -> Unit) {
     if (scanning) {
         BluetoothScanEffect(
             scanSettings = scanSettings,
-            onScanFailed = {
-                scanning = false
-                Log.w("FindBLEDevices", "Scan failed with error: $it")
+            onScanFailed = { errorCode ->
+                Log.e("FindDevicesScreen", "Scan failed with error: $errorCode")
             },
-            onDeviceFound = { scanResult ->
-                if (!devices.contains(scanResult.device)) {
-                    devices.add(scanResult.device)
-                }
-
-                // If we find our GATT server sample let's highlight it
-                val serviceUuids = scanResult.scanRecord?.serviceUuids.orEmpty()
-                if (serviceUuids.contains(ParcelUuid(SERVICE_UUID))) {
-                    if (!sampleServerDevices.contains(scanResult.device)) {
-                        sampleServerDevices.add(scanResult.device)
+            onDeviceFound = { result ->
+                val device = result.device
+                val broadcastUuid = result.scanRecord?.serviceUuids?.find { 
+                    it.uuid == BROADCAST_UUID 
+                }?.uuid?.toString()
+                
+                if (broadcastUuid != null) {
+                    Log.d("FindDevicesScreen", "Found device with broadcast UUID: $broadcastUuid")
+                    if (!devices.contains(device)) {
+                        devices.add(device)
+                        deviceBroadcastUuids[device.address] = broadcastUuid
                     }
                 }
-            },
+            }
         )
         // Stop scanning after a while
         LaunchedEffect(true) {
@@ -134,6 +133,7 @@ internal fun FindDevicesScreen(onConnect: (BluetoothDevice) -> Unit) {
                 IconButton(
                     onClick = {
                         devices.clear()
+                        deviceBroadcastUuids.clear()
                         scanning = true
                     },
                 ) {
@@ -155,7 +155,9 @@ internal fun FindDevicesScreen(onConnect: (BluetoothDevice) -> Unit) {
                 BluetoothDeviceItem(
                     bluetoothDevice = item,
                     isSampleServer = sampleServerDevices.contains(item),
-                    onConnect = onConnect,
+                    onConnect = { device, _ -> 
+                        onConnect(device, deviceBroadcastUuids[device.address])
+                    }
                 )
             }
 
@@ -166,13 +168,12 @@ internal fun FindDevicesScreen(onConnect: (BluetoothDevice) -> Unit) {
                 items(pairedDevices) {
                     BluetoothDeviceItem(
                         bluetoothDevice = it,
-                        onConnect = onConnect,
+                        onConnect = { device, _ -> onConnect(device, null) }
                     )
                 }
             }
         }
     }
-
 }
 
 @SuppressLint("MissingPermission")
@@ -180,13 +181,13 @@ internal fun FindDevicesScreen(onConnect: (BluetoothDevice) -> Unit) {
 internal fun BluetoothDeviceItem(
     bluetoothDevice: BluetoothDevice,
     isSampleServer: Boolean = false,
-    onConnect: (BluetoothDevice) -> Unit,
+    onConnect: (BluetoothDevice, String?) -> Unit,
 ) {
     Row(
         modifier = Modifier
             .padding(vertical = 8.dp)
             .fillMaxWidth()
-            .clickable { onConnect(bluetoothDevice) },
+            .clickable { onConnect(bluetoothDevice, null) },
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
@@ -208,7 +209,6 @@ internal fun BluetoothDeviceItem(
             else -> "None"
         }
         Text(text = state)
-
     }
 }
 

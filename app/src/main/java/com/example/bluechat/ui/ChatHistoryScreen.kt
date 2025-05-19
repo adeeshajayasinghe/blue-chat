@@ -50,6 +50,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bluechat.ble.operations.DeviceConnectionState
 import com.example.bluechat.ble.operations.sendData
 import com.example.bluechat.data.Message
+import com.example.bluechat.server.GATTServerService.Companion.BROADCAST_UUID
 import com.example.bluechat.server.GATTServerService.Companion.CHARACTERISTIC_UUID
 import com.example.bluechat.server.GATTServerService.Companion.SERVICE_UUID
 import com.example.bluechat.viewmodel.ChatViewModel
@@ -76,10 +77,11 @@ fun ChatHistoryScreen(
     var connectionState by remember { mutableStateOf<DeviceConnectionState?>(null) }
     val context = LocalContext.current
     val adapter = context.getSystemService(BluetoothManager::class.java).adapter
+    val broadcastUuid = ParcelUuid(BROADCAST_UUID)
 
     // Load messages when the screen is first displayed
     LaunchedEffect(deviceId) {
-        viewModel.loadMessagesForDeviceName(deviceName)
+        viewModel.loadMessagesForDeviceUuid(deviceId)
     }
 
     // BLE scanning effect to check if the device is online
@@ -92,8 +94,13 @@ fun ChatHistoryScreen(
         val leScanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 super.onScanResult(callbackType, result)
-                val isTargetDevice = result.device.name == deviceName &&
-                        result.scanRecord?.serviceUuids?.contains(ParcelUuid(SERVICE_UUID)) == true
+                val gattServerID = result.scanRecord?.serviceUuids?.find { it.toString() == deviceId }
+                Log.d("GATT_SERVER", "Scan result: ${gattServerID.toString()} and $deviceId")
+                val isTargetDevice = (gattServerID != null) &&
+                        (result.scanRecord?.serviceUuids?.contains(ParcelUuid(SERVICE_UUID)) == true)
+                if (gattServerID != null) {
+                    Log.d("GATT_SERVER", "Broadcast UUID found: ${gattServerID.uuid}")
+                }
 
                 if (isTargetDevice) {
                     isDeviceOnline = true
@@ -216,7 +223,7 @@ fun ChatHistoryScreen(
                                     content = messageInput,
                                     senderId = "current_user",
                                     receiverId = deviceId,
-                                    deviceName = deviceName,
+                                    deviceUuid = deviceId,
                                     isSent = true
                                 )
                                 messageInput = ""

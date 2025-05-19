@@ -46,7 +46,7 @@ fun ContactListScreen(
                 ContactItem(
                     device = device,
                     dateFormat = dateFormat,
-                    onClick = { onDeviceClick(device.name ?: "Unknown Device", device.name) },
+                    onClick = { onDeviceClick(device.uuid, device.name ?: "Unknown Device") },
                     onDelete = { onDeleteDevice(device) }
                 )
             }
