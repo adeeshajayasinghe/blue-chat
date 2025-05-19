@@ -15,90 +15,91 @@ import com.example.bluechat.viewmodel.ChatViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Composable
-fun ChatScreen(
-    deviceId: String,
-    viewModel: ChatViewModel = viewModel()
-) {
-    val messages by viewModel.messages.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
-    var messageText by remember { mutableStateOf("") }
-    
-    // Load messages when the screen is first displayed
-    LaunchedEffect(deviceId) {
-        viewModel.loadMessagesForDevice(deviceId)
-    }
-    
-    // Show error if any
-    error?.let { errorMessage ->
-        LaunchedEffect(errorMessage) {
-            // Show error message (you might want to use a Snackbar or Toast)
-        }
-    }
-    
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // Messages list
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    reverseLayout = true
-                ) {
-                    items(messages.reversed()) { message ->
-                        MessageItem(message)
-                    }
-                }
-            }
-        }
-        
-        // Message input
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextField(
-                value = messageText,
-                onValueChange = { messageText = it },
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp),
-                placeholder = { Text("Type a message...") }
-            )
-            
-            Button(
-                onClick = {
-                    if (messageText.isNotBlank()) {
-                        viewModel.addMessage(
-                            content = messageText,
-                            senderId = "current_user", // Replace with actual user ID
-                            receiverId = deviceId,
-                            isSent = true
-                        )
-                        messageText = ""
-                    }
-                },
-                enabled = messageText.isNotBlank()
-            ) {
-                Text("Send")
-            }
-        }
-    }
-}
+//@Composable
+//fun ChatScreen(
+//    deviceId: String,
+//    viewModel: ChatViewModel = viewModel()
+//) {
+//    val messages by viewModel.messages.collectAsState()
+//    val isLoading by viewModel.isLoading.collectAsState()
+//    val error by viewModel.error.collectAsState()
+//    var messageText by remember { mutableStateOf("") }
+//
+//    // Load messages when the screen is first displayed
+//    LaunchedEffect(deviceId) {
+//        viewModel.loadMessagesForDevice(deviceId)
+//    }
+//
+//    // Show error if any
+//    error?.let { errorMessage ->
+//        LaunchedEffect(errorMessage) {
+//            // Show error message (you might want to use a Snackbar or Toast)
+//        }
+//    }
+//
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .padding(16.dp)
+//    ) {
+//        // Messages list
+//        Box(
+//            modifier = Modifier
+//                .weight(1f)
+//                .fillMaxWidth()
+//        ) {
+//            if (isLoading) {
+//                CircularProgressIndicator(
+//                    modifier = Modifier.align(Alignment.Center)
+//                )
+//            } else {
+//                LazyColumn(
+//                    modifier = Modifier.fillMaxSize(),
+//                    reverseLayout = true
+//                ) {
+//                    items(messages.reversed()) { message ->
+//                        MessageItem(message)
+//                    }
+//                }
+//            }
+//        }
+//
+//        // Message input
+//        Row(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(vertical = 8.dp),
+//            verticalAlignment = Alignment.CenterVertically
+//        ) {
+//            TextField(
+//                value = messageText,
+//                onValueChange = { messageText = it },
+//                modifier = Modifier
+//                    .weight(1f)
+//                    .padding(end = 8.dp),
+//                placeholder = { Text("Type a message...") }
+//            )
+//
+//            Button(
+//                onClick = {
+//                    if (messageText.isNotBlank()) {
+//                        viewModel.addMessage(
+//                            content = messageText,
+//                            senderId = "current_user", // Replace with actual user ID
+//                            receiverId = deviceId,
+//                            deviceName = ,
+//                            isSent = true
+//                        )
+//                        messageText = ""
+//                    }
+//                },
+//                enabled = messageText.isNotBlank()
+//            ) {
+//                Text("Send")
+//            }
+//        }
+//    }
+//}
 
 @Composable
 fun MessageItem(message: Message) {
