@@ -20,6 +20,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelUuid
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
@@ -46,6 +47,9 @@ class GATTServerService : Service() {
 
         // Same as the service but for the characteristic
         val CHARACTERISTIC_UUID: UUID = UUID.fromString("00001111-0000-1000-8000-00805f9b34fb")
+
+        // New broadcast UUID
+        val BROADCAST_UUID: UUID = UUID.fromString("00003333-0000-1000-8000-00805f9b34fb")
 
         const val ACTION_START_ADVERTISING = "start_ad"
         const val ACTION_STOP_ADVERTISING = "stop_ad"
@@ -190,6 +194,7 @@ class GATTServerService : Service() {
         val data = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
             .addServiceUuid(ParcelUuid(SERVICE_UUID))
+            .addServiceUuid(ParcelUuid(BROADCAST_UUID))
             .build()
 
         advertiser.startAdvertising(settings, data, SampleAdvertiseCallback)
@@ -204,10 +209,32 @@ class GATTServerService : Service() {
             newState: Int,
         ) {
             // Log device details when connection state changes
-            val deviceName = device.name
+            val deviceName = device.name ?: "Unknown Device"
             val deviceAddress = device.address
             val deviceType = device.type
             val deviceBondState = device.bondState
+            val deviceId = device.toString()
+
+            Log.d("GATTServer", "Device: $deviceName, Address: $deviceAddress, Type: $deviceType, Device ID: $deviceId")
+            Log.d("GATTServer", "Broadcast UUID: $BROADCAST_UUID")
+
+            // Check if the device is already in the database
+//            scope.launch(Dispatchers.IO) {
+//                val existingDevice = repository.getDevice(deviceName)
+//                if (existingDevice == null) {
+//                    val newDevice = Device(
+//                        name = deviceName,
+//                        address = deviceAddress,
+//                        lastConnected = System.currentTimeMillis(),
+//                        lastMessageTimestamp = null
+//                    )
+//                    repository.insertDevice(newDevice)
+//                    serverLogsState.value += "Device saved to database: $deviceName\n"
+//                    Log.d("CHAT MESSAGE", "Message received from device address: $deviceAddress")
+//                } else {
+//                    serverLogsState.value += "Device already exists in database: $deviceName\n"
+//                }
+//            }
             
             serverLogsState.value += """
                 Connection state change: ${newState.toConnectionStateString()}
@@ -242,14 +269,17 @@ class GATTServerService : Service() {
                 - Address: $deviceAddress
                 - Message: $message
             """.trimIndent() + "\n"
-            
+
             // Store message in database
             scope.launch(Dispatchers.IO) {
+                val broadcastUuid = ParcelUuid(BROADCAST_UUID)
+//                val deviceUuid = result.scanRecord?.serviceUuids?.find { it == broadcastUuid }?.uuid?.toString()
+
                 val messageEntity = Message(
                     content = message,
                     senderId = deviceAddress,
-                    receiverId = "server",
-                    deviceName = deviceName,
+                    receiverId = "Server",
+                    deviceUuid = broadcastUuid.toString(),
                     timestamp = timestamp,
                     isSent = false
                 )
