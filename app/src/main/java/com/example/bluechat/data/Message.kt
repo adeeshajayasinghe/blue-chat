@@ -11,7 +11,7 @@ data class Message(
     val content: String,
     val senderId: String,
     val receiverId: String,
-    val deviceName: String?, // Name of the device this message is associated with
+    val deviceUuid: String,  // UUID of the device this message is associated with
     val timestamp: Date,
     val isSent: Boolean // true if sent by this device, false if received
 ) 

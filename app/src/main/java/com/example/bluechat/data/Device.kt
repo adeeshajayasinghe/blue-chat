@@ -6,7 +6,8 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "devices")
 data class Device(
     @PrimaryKey
-    val name: String,
+    val uuid: String,  // Store UUID as String
+    val name: String?,
     val address: String,
     val lastConnected: Long,
     val lastMessageTimestamp: Long?

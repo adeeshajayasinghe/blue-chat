@@ -9,7 +9,10 @@ interface DeviceDao {
     fun getAllDevices(): Flow<List<Device>>
 
     @Query("SELECT * FROM devices WHERE name = :name")
-    suspend fun getDevice(name: String): Device?
+    suspend fun getDeviceByName(name: String): Device?
+
+    @Query("SELECT * FROM devices WHERE uuid = :uuid")
+    suspend fun getDevice(uuid: String): Device?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDevice(device: Device)
