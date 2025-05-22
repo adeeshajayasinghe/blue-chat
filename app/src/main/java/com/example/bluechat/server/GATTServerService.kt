@@ -30,6 +30,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.example.bluechat.ble.operations.toConnectionStateString
 import com.example.bluechat.data.Message
 import com.example.bluechat.data.ChatRepository
+import com.example.bluechat.utils.UUIDManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -48,9 +49,7 @@ class GATTServerService : Service() {
         // Same as the service but for the characteristic
         val CHARACTERISTIC_UUID: UUID = UUID.fromString("00001111-0000-1000-8000-00805f9b34fb")
 
-        // New broadcast UUID
-        val BROADCAST_UUID: UUID = UUID.fromString("00003333-0000-1000-8000-00805f9b34fb")
-
+        // Remove the static BROADCAST_UUID as we'll generate it dynamically
         const val ACTION_START_ADVERTISING = "start_ad"
         const val ACTION_STOP_ADVERTISING = "stop_ad"
 
@@ -63,6 +62,15 @@ class GATTServerService : Service() {
         val lastReceivedMessage = MutableStateFlow("")
 
         private const val CHANNEL = "gatt_server_channel"
+        
+        // Store the discovered broadcast UUID
+        var discoveredBroadcastUuid: String? = null
+
+        // Method to update the discovered broadcast UUID
+        fun updateDiscoveredBroadcastUuid(uuid: String?) {
+            discoveredBroadcastUuid = uuid
+            Log.d("GATTServer", "Updated discovered broadcast UUID: $uuid")
+        }
     }
 
     private val manager: BluetoothManager by lazy {
@@ -191,10 +199,14 @@ class GATTServerService : Service() {
             .setTimeout(0)
             .build()
 
+        // Get our unique UUID for broadcasting
+        broadcastUUID = UUIDManager.getFullUUID(applicationContext)
+        Log.d("HELLO", "Broadcasting with UUID: $broadcastUUID")
+
         val data = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
             .addServiceUuid(ParcelUuid(SERVICE_UUID))
-            .addServiceUuid(ParcelUuid(BROADCAST_UUID))
+            .addServiceUuid(ParcelUuid(broadcastUUID!!))
             .build()
 
         advertiser.startAdvertising(settings, data, SampleAdvertiseCallback)
