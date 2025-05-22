@@ -46,8 +46,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.bluechat.server.GATTServerService.Companion.BROADCAST_UUID
 import kotlinx.coroutines.delay
+import com.example.bluechat.utils.UUIDManager
 
 @SuppressLint("MissingPermission")
 @RequiresApi(Build.VERSION_CODES.M)
@@ -99,11 +99,12 @@ internal fun FindDevicesScreen(onConnect: (BluetoothDevice, String?) -> Unit) {
             onDeviceFound = { result ->
                 val device = result.device
                 val broadcastUuid = result.scanRecord?.serviceUuids?.find { 
-                    it.uuid == BROADCAST_UUID 
+                    UUIDManager.isOurUUID(it.uuid.toString())
                 }?.uuid?.toString()
                 
                 if (broadcastUuid != null) {
-                    Log.d("FindDevicesScreen", "Found device with broadcast UUID: $broadcastUuid")
+                    val uniquePart = UUIDManager.getUniquePart(broadcastUuid)
+                    Log.d("FindDevicesScreen", "Found device with broadcast UUID: $broadcastUuid (Unique part: $uniquePart)")
                     if (!devices.contains(device)) {
                         devices.add(device)
                         deviceBroadcastUuids[device.address] = broadcastUuid

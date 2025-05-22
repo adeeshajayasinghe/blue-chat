@@ -52,6 +52,7 @@ import com.example.bluechat.BlueChatApplication
 import com.example.bluechat.data.Message
 import java.util.Date
 import com.example.bluechat.data.Device
+import com.example.bluechat.server.GATTServerService
 import androidx.compose.foundation.background
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -73,12 +74,16 @@ fun ConnectGATTSample() {
                 FindDevicesScreen { discoveredDevice, broadcastUuid ->
                     selectedDevice = discoveredDevice
                     discoveredBroadcastUuid = broadcastUuid
+                    // Update the GATTServerService with the discovered UUID
+                    GATTServerService.updateDiscoveredBroadcastUuid(broadcastUuid)
                 }
             } else {
                 // Once a device is selected show the UI and try to connect device
                 ConnectDeviceScreen(device = device, broadcastUuid = discoveredBroadcastUuid) {
                     selectedDevice = null
                     discoveredBroadcastUuid = null
+                    // Clear the discovered UUID when disconnecting
+                    GATTServerService.updateDiscoveredBroadcastUuid(null)
                 }
             }
         }
@@ -196,7 +201,7 @@ fun ConnectDeviceScreen(device: BluetoothDevice, broadcastUuid: String?, onClose
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary
             )
-            
+
             // Device info card
             Column(
                 modifier = Modifier
@@ -225,7 +230,7 @@ fun ConnectDeviceScreen(device: BluetoothDevice, broadcastUuid: String?, onClose
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
