@@ -238,7 +238,7 @@ class GATTServerService : Service() {
             
             serverLogsState.value += """
                 Connection state change: ${newState.toConnectionStateString()}
-                Device details:
+                Device status:
                 - Name: ${deviceName ?: "null"}
                 - Address: $deviceAddress
                 - Type: $deviceType

@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -186,9 +187,10 @@ internal fun BluetoothDeviceItem(
     Row(
         modifier = Modifier
             .padding(vertical = 8.dp)
-            .fillMaxWidth()
-            .clickable { onConnect(bluetoothDevice, null) },
+            .fillMaxWidth(),
+//            .clickable { onConnect(bluetoothDevice, null) },
         horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             if (isSampleServer) {
@@ -202,13 +204,21 @@ internal fun BluetoothDeviceItem(
                 TextStyle(fontWeight = FontWeight.Normal)
             },
         )
-        Text(bluetoothDevice.address)
+
+//        Text(bluetoothDevice.address)
+
         val state = when (bluetoothDevice.bondState) {
             BluetoothDevice.BOND_BONDED -> "Paired"
             BluetoothDevice.BOND_BONDING -> "Pairing"
-            else -> "None"
+            else -> "Connect"
         }
-        Text(text = state)
+        if (state == "Connect") {
+            Button(onClick = {onConnect(bluetoothDevice, null)}) {
+                Text(text = state)
+            }
+        } else {
+            Text(text = state)
+        }
     }
 }
 
