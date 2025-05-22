@@ -42,14 +42,31 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
+    // Load messages for a specific device by name
+    fun loadMessagesForDeviceUuid(deviceUuid: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            repository.getMessagesWithDeviceUuid(deviceUuid)
+                .catch { e ->
+                    _error.value = e.message ?: "Unknown error"
+                    _isLoading.value = false
+                }
+                .collect { messageList ->
+                    _messages.value = messageList
+                    _isLoading.value = false
+                }
+        }
+    }
+    
     // Add a new message
-    fun addMessage(content: String, senderId: String, receiverId: String, isSent: Boolean) {
+    fun addMessage(deviceUuid: String, content: String, senderId: String, receiverId: String, isSent: Boolean) {
         viewModelScope.launch {
             try {
                 val message = Message(
                     content = content,
                     senderId = senderId,
                     receiverId = receiverId,
+                    deviceUuid = deviceUuid,
                     timestamp = Date(),
                     isSent = isSent
                 )

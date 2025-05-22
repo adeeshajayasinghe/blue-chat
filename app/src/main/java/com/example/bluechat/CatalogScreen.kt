@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -81,7 +82,7 @@ fun CatalogScreenItem(
         "create-gatt-server" -> Icons.Default.Home
         "connect-gatt-server" -> Icons.AutoMirrored.Filled.Send
         "find-devices" -> Icons.Default.Search
-        else -> Icons.AutoMirrored.Filled.Send
+        else -> Icons.Default.AccountBox
     }
 
     OutlinedCard(

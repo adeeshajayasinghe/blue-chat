@@ -40,22 +40,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
 import com.example.bluechat.server.GATTServerService.Companion.CHARACTERISTIC_UUID
 import com.example.bluechat.server.GATTServerService.Companion.SERVICE_UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import androidx.compose.material3.Icon
-import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.runtime.collectAsState
 import com.example.bluechat.BlueChatApplication
 import com.example.bluechat.data.Message
 import java.util.Date
+import com.example.bluechat.data.Device
 
 @OptIn(ExperimentalAnimationApi::class)
 @SuppressLint("MissingPermission")
@@ -65,18 +61,23 @@ fun ConnectGATTSample() {
     var selectedDevice by remember {
         mutableStateOf<BluetoothDevice?>(null)
     }
+    var discoveredBroadcastUuid by remember {
+        mutableStateOf<String?>(null)
+    }
     // Check that BT permissions and that BT is available and enabled
     BluetoothSampleBox {
         AnimatedContent(targetState = selectedDevice, label = "Selected device") { device ->
             if (device == null) {
                 // Scans for BT devices and handles clicks (see FindDeviceSample)
-                FindDevicesScreen {
-                    selectedDevice = it
+                FindDevicesScreen { discoveredDevice, broadcastUuid ->
+                    selectedDevice = discoveredDevice
+                    discoveredBroadcastUuid = broadcastUuid
                 }
             } else {
                 // Once a device is selected show the UI and try to connect device
-                ConnectDeviceScreen(device = device) {
+                ConnectDeviceScreen(device = device, broadcastUuid = discoveredBroadcastUuid) {
                     selectedDevice = null
+                    discoveredBroadcastUuid = null
                 }
             }
         }
@@ -86,7 +87,7 @@ fun ConnectGATTSample() {
 @SuppressLint("InlinedApi")
 @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
 @Composable
-fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
+fun ConnectDeviceScreen(device: BluetoothDevice, broadcastUuid: String?, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val repository = (context.applicationContext as BlueChatApplication).repository
@@ -115,20 +116,62 @@ fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
 
     // This effect will handle the connection and notify when the state changes
     BLEConnectEffect(device = device) {
-        // update our state to recompose the UI
+        // Update state to recompose the UI
         state = it
-        
-        // Add received message to database
-        if (it.messageReceived.isNotEmpty()) {
-            scope.launch(Dispatchers.IO) {
-                val message = Message(
-                    content = it.messageReceived,
-                    senderId = device.address,
-                    receiverId = "current_user",
-                    timestamp = Date(),
-                    isSent = false
-                )
-                repository.insertMessage(message)
+
+        if (state?.connectionState == BluetoothProfile.STATE_DISCONNECTED) {
+            state?.gatt?.connect()
+        }
+
+        // Save device information when connected
+        if (it.connectionState == BluetoothProfile.STATE_CONNECTED) {
+            state?.gatt?.discoverServices() // Discover services after connection
+        }
+
+        // Handle discovered services
+        if (it.services.isNotEmpty()) {
+            // Check for SERVICE_UUID in services
+            val serviceUuid = it.services.find { service -> service.uuid == SERVICE_UUID }?.uuid?.toString()
+            
+            Log.d("GATT_Clients", "Service UUID: $serviceUuid")
+            Log.d("GATT_Clients", "Broadcast UUID from advertisement: $broadcastUuid")
+
+            // Save device information if service UUID is found and we have a broadcast UUID
+            if (serviceUuid != null && broadcastUuid != null) {
+                scope.launch(Dispatchers.IO) {
+                    val deviceName = device.name ?: "Unknown Device"
+                    val deviceEntity = Device(
+                        uuid = broadcastUuid,
+                        name = deviceName,
+                        address = device.address,
+                        lastConnected = System.currentTimeMillis(),
+                        lastMessageTimestamp = null
+                    )
+                    repository.insertDevice(deviceEntity)
+                    Log.d("GATT_Clients", "Device saved to database with UUID: ${deviceEntity.uuid}")
+                }
+            }
+
+            // Add received message to database
+            if (it.messageReceived.isNotEmpty() && broadcastUuid != null) {
+                scope.launch(Dispatchers.IO) {
+                    val message = Message(
+                        content = it.messageReceived,
+                        senderId = device.address,
+                        receiverId = "current_user",
+                        deviceUuid = broadcastUuid,
+                        timestamp = Date(),
+                        isSent = false
+                    )
+                    repository.insertMessage(message)
+
+                    // Update device's last message timestamp
+                    repository.getDevice(broadcastUuid)?.let { existingDevice ->
+                        repository.insertDevice(existingDevice.copy(
+                            lastMessageTimestamp = System.currentTimeMillis()
+                        ))
+                    }
+                }
             }
         }
     }
@@ -226,16 +269,24 @@ fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
                             if (messageInput.isNotEmpty() && state?.gatt != null && characteristic != null) {
                                 scope.launch(Dispatchers.IO) {
                                     sendData(state?.gatt!!, characteristic!!, messageInput)
-                                    
+                                    val broadcastUuid = state?.services?.find { it.uuid == SERVICE_UUID }?.uuid.toString()
                                     // Add sent message to database
                                     val message = Message(
                                         content = messageInput,
                                         senderId = "current_user",
                                         receiverId = device.address,
+                                        deviceUuid = broadcastUuid,
                                         timestamp = Date(),
                                         isSent = true
                                     )
                                     repository.insertMessage(message)
+                                    
+                                    // Update device's last message timestamp
+                                    repository.getDevice(device.address)?.let { existingDevice ->
+                                        repository.insertDevice(existingDevice.copy(
+                                            lastMessageTimestamp = System.currentTimeMillis()
+                                        ))
+                                    }
                                     
                                     messageInput = "" // Clear input after sending
                                 }
@@ -347,7 +398,7 @@ private fun formatTimestamp(timestamp: Long): String {
  * Writes the provided message to the server characteristic
  */
 @SuppressLint("MissingPermission")
-private fun sendData(
+fun sendData(
     gatt: BluetoothGatt,
     characteristic: BluetoothGattCharacteristic,
     message: String
@@ -376,7 +427,7 @@ internal fun Int.toConnectionStateString() = when (this) {
     else -> "N/A"
 }
 
-private data class DeviceConnectionState(
+data class DeviceConnectionState(
     val gatt: BluetoothGatt?,
     val connectionState: Int,
     val mtu: Int,
@@ -392,7 +443,7 @@ private data class DeviceConnectionState(
 @SuppressLint("InlinedApi")
 @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
 @Composable
-private fun BLEConnectEffect(
+fun BLEConnectEffect(
     device: BluetoothDevice,
     onStateChange: (DeviceConnectionState) -> Unit,
 ) {

@@ -11,6 +11,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE (senderId = :deviceId OR receiverId = :deviceId) ORDER BY timestamp ASC")
     fun getMessagesWithDevice(deviceId: String): Flow<List<Message>>
 
+    @Query("SELECT * FROM messages WHERE deviceUuid = :deviceName ORDER BY timestamp ASC")
+    fun getMessagesWithDeviceUuid(deviceName: String): Flow<List<Message>>
+
     @Insert
     suspend fun insertMessage(message: Message)
 

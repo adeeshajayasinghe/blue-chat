@@ -9,7 +9,7 @@ class BlueChatApplication : Application() {
     private val database by lazy { ChatDatabase.getDatabase(this) }
     
     // Repository instance
-    val repository by lazy { ChatRepository(database.messageDao()) }
+    val repository by lazy { ChatRepository(database.messageDao(), database.deviceDao()) }
     
     override fun onCreate() {
         super.onCreate()
