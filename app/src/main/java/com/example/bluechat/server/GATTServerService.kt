@@ -92,6 +92,9 @@ class GATTServerService : Service() {
 
     private lateinit var server: BluetoothGattServer
     private lateinit var repository: ChatRepository
+    private var broadcastUUID: UUID? = null
+    // Store the current broadcast UUID for the active connection
+    private var currentBroadcastUuid: String? = null
 
     private val scope = CoroutineScope(SupervisorJob())
 
@@ -228,25 +231,14 @@ class GATTServerService : Service() {
             val deviceId = device.toString()
 
             Log.d("GATTServer", "Device: $deviceName, Address: $deviceAddress, Type: $deviceType, Device ID: $deviceId")
-            Log.d("GATTServer", "Broadcast UUID: $BROADCAST_UUID")
 
-            // Check if the device is already in the database
-//            scope.launch(Dispatchers.IO) {
-//                val existingDevice = repository.getDevice(deviceName)
-//                if (existingDevice == null) {
-//                    val newDevice = Device(
-//                        name = deviceName,
-//                        address = deviceAddress,
-//                        lastConnected = System.currentTimeMillis(),
-//                        lastMessageTimestamp = null
-//                    )
-//                    repository.insertDevice(newDevice)
-//                    serverLogsState.value += "Device saved to database: $deviceName\n"
-//                    Log.d("CHAT MESSAGE", "Message received from device address: $deviceAddress")
-//                } else {
-//                    serverLogsState.value += "Device already exists in database: $deviceName\n"
-//                }
-//            }
+            // Update the current broadcast UUID when a device connects
+            if (newState == BluetoothGatt.STATE_CONNECTED) {
+                broadcastUUID?.toString()?.let { uuid ->
+                    currentBroadcastUuid = uuid
+                    Log.d("GATTServer", "Updated current broadcast UUID: $uuid")
+                }
+            }
             
             serverLogsState.value += """
                 Connection state change: ${newState.toConnectionStateString()}
@@ -274,6 +266,29 @@ class GATTServerService : Service() {
             // Log device details when receiving a message
             val deviceName = device.name
             val deviceAddress = device.address
+
+            Log.d("GATTServer", "Got write request from device: $deviceName ($deviceAddress)")
+            
+            // Use the discovered broadcast UUID for the message
+            discoveredBroadcastUuid?.let { broadcastUuid ->
+                Log.d("GATTServer", "Using discovered broadcast UUID: $broadcastUuid")
+                
+                // Store message in database with the broadcast UUID
+                scope.launch(Dispatchers.IO) {
+                    val messageEntity = Message(
+                        content = message,
+                        senderId = deviceAddress,
+                        receiverId = "Server",
+                        deviceUuid = broadcastUuid,
+                        timestamp = timestamp,
+                        isSent = false
+                    )
+                    repository.insertMessage(messageEntity)
+                    Log.d("GATTServer", "Message stored in database with UUID: $broadcastUuid")
+                }
+            } ?: run {
+                Log.e("GATTServer", "No discovered broadcast UUID available")
+            }
             
             serverLogsState.value += """
                 Message received from device:
@@ -281,31 +296,12 @@ class GATTServerService : Service() {
                 - Address: $deviceAddress
                 - Message: $message
             """.trimIndent() + "\n"
-
-            // Store message in database
-            scope.launch(Dispatchers.IO) {
-                val broadcastUuid = ParcelUuid(BROADCAST_UUID)
-//                val deviceUuid = result.scanRecord?.serviceUuids?.find { it == broadcastUuid }?.uuid?.toString()
-
-                val messageEntity = Message(
-                    content = message,
-                    senderId = deviceAddress,
-                    receiverId = "Server",
-                    deviceUuid = broadcastUuid.toString(),
-                    timestamp = timestamp,
-                    isSent = false
-                )
-                repository.insertMessage(messageEntity)
-            }
             
             // Update last message for backward compatibility
             lastReceivedMessage.value = message
             
             serverLogsState.value += "Message received from ${deviceName ?: deviceAddress}: $message\n"
             
-            // Here you should apply the write of the characteristic and notify connected
-            // devices that it changed
-
             // If response is needed reply to the device that the write was successful
             if (responseNeeded) {
                 server.sendResponse(
