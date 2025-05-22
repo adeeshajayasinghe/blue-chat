@@ -1,6 +1,8 @@
 package com.example.bluechat
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -24,7 +26,34 @@ fun NavView() {
     val navController = rememberNavController()
 
     AppTheme {
-        NavHost(navController = navController, startDestination = NavigationRoutes.FRONT_PAGE) {
+        NavHost(
+            navController = navController,
+            startDestination = NavigationRoutes.FRONT_PAGE,
+            enterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(500)
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(500)
+                )
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(500)
+                )
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(500)
+                )
+            }
+        ) {
             composable(NavigationRoutes.FRONT_PAGE) {
                 FrontPageScreen(
                     onGetStartedClick = {
@@ -54,7 +83,7 @@ fun NavView() {
             ) { backStackEntry ->
                 val arguments = requireNotNull(backStackEntry.arguments)
                 val sampleDemoId = requireNotNull(arguments.getString(NavigationRoutes.SAMPLE_DEMO_ID))
-                val sampleDemo = BLE_OPERATIONS.getValue(sampleDemoId) as ComposableSampleDemo
+                val sampleDemo = BLE_OPERATIONS.getValue(sampleDemoId)
 
                 Scaffold(
                     topBar = { TopAppBar(title = { Text(sampleDemo.name) }) },
@@ -70,13 +99,12 @@ fun NavView() {
                 }
             }
         }
-
     }
 }
 
 @Serializable
 data object MainScreen : CatalogItem {
     override val id = "main"
-    override val name = "Platform Samples"
+    override val name = "BlueChat"
     override val description = null
 }

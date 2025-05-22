@@ -16,10 +16,16 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -43,6 +50,12 @@ import com.example.bluechat.server.GATTServerService.Companion.SERVICE_UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import androidx.compose.material3.Icon
+import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.compose.runtime.collectAsState
+import com.example.bluechat.BlueChatApplication
+import com.example.bluechat.data.Message
+import java.util.Date
 
 @OptIn(ExperimentalAnimationApi::class)
 @SuppressLint("MissingPermission")
@@ -75,6 +88,8 @@ fun ConnectGATTSample() {
 @Composable
 fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val repository = (context.applicationContext as BlueChatApplication).repository
 
     // Keeps track of the last connection state with the device
     var state by remember(device) {
@@ -88,11 +103,34 @@ fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
     val characteristic by remember(service) {
         mutableStateOf(service?.getCharacteristic(CHARACTERISTIC_UUID))
     }
+    
+    // Add state for the message input
+    var messageInput by remember { mutableStateOf("") }
+    
+    // Use the database messages instead of in-memory storage
+    val messages by repository.getMessagesWithDevice(device.address).collectAsState(initial = emptyList())
+    
+    // Add state for showing logs
+    var showLogs by remember { mutableStateOf(false) }
 
     // This effect will handle the connection and notify when the state changes
     BLEConnectEffect(device = device) {
         // update our state to recompose the UI
         state = it
+        
+        // Add received message to database
+        if (it.messageReceived.isNotEmpty()) {
+            scope.launch(Dispatchers.IO) {
+                val message = Message(
+                    content = it.messageReceived,
+                    senderId = device.address,
+                    receiverId = "current_user",
+                    timestamp = Date(),
+                    isSent = false
+                )
+                repository.insertMessage(message)
+            }
+        }
     }
 
     Column(
@@ -106,9 +144,137 @@ fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
         Text(text = "Name: ${device.name} (${device.address})")
         Text(text = "Status: ${state?.connectionState?.toConnectionStateString()}")
         Text(text = "MTU: ${state?.mtu}")
-        Text(text = "Services: ${state?.services?.joinToString { it.uuid.toString() + " " + it.type }}")
-        Text(text = "Message sent: ${state?.messageSent}")
-        Text(text = "Message received: ${state?.messageReceived}")
+        
+        // Only show services if logs are enabled
+        if (showLogs) {
+            Text(text = "Services: ${state?.services?.joinToString { it.uuid.toString() + " " + it.type }}")
+        }
+        
+        // Chat interface section
+        Text(
+            text = "Chat", 
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 16.dp)
+        )
+        
+        // Display message history
+        if (messages.isNotEmpty()) {
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            ) {
+                items(messages) { message ->
+                    androidx.compose.material3.Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = if (message.isSent) "Me" else device.name ?: device.address,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (message.isSent) 
+                                        MaterialTheme.colorScheme.primary 
+                                    else 
+                                        MaterialTheme.colorScheme.secondary
+                                )
+                                Text(
+                                    text = formatTimestamp(message.timestamp.time),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                            Text(
+                                text = message.content,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            Text(
+                text = "No messages yet",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+        
+        // Message input row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            androidx.compose.material3.OutlinedTextField(
+                value = messageInput,
+                onValueChange = { messageInput = it },
+                label = { Text("Type a message") },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = state?.gatt != null && characteristic != null,
+                trailingIcon = {
+                    androidx.compose.material3.IconButton(
+                        onClick = {
+                            if (messageInput.isNotEmpty() && state?.gatt != null && characteristic != null) {
+                                scope.launch(Dispatchers.IO) {
+                                    sendData(state?.gatt!!, characteristic!!, messageInput)
+                                    
+                                    // Add sent message to database
+                                    val message = Message(
+                                        content = messageInput,
+                                        senderId = "current_user",
+                                        receiverId = device.address,
+                                        timestamp = Date(),
+                                        isSent = true
+                                    )
+                                    repository.insertMessage(message)
+                                    
+                                    messageInput = "" // Clear input after sending
+                                }
+                            }
+                        },
+                        enabled = messageInput.isNotEmpty() && state?.gatt != null && characteristic != null
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send",
+                            tint = if (messageInput.isNotEmpty() && state?.gatt != null && characteristic != null)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        )
+                    }
+                }
+            )
+        }
+        
+        // Add a clear messages button
+        Button(
+            onClick = { 
+                scope.launch(Dispatchers.IO) {
+                    repository.deleteAllMessages()
+                }
+            },
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            Text("Clear Messages")
+        }
+        
+        // Connection controls
+        Text(
+            text = "Connection Controls", 
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 16.dp)
+        )
+        
         Button(
             onClick = {
                 scope.launch(Dispatchers.IO) {
@@ -139,37 +305,54 @@ fun ConnectDeviceScreen(device: BluetoothDevice, onClose: () -> Unit) {
             enabled = state?.gatt != null && characteristic != null,
             onClick = {
                 scope.launch(Dispatchers.IO) {
-                    sendData(state?.gatt!!, characteristic!!)
-                }
-            },
-        ) {
-            Text(text = "Write to server")
-        }
-        Button(
-            enabled = state?.gatt != null && characteristic != null,
-            onClick = {
-                scope.launch(Dispatchers.IO) {
                     state?.gatt?.readCharacteristic(characteristic)
                 }
             },
         ) {
             Text(text = "Read characteristic")
         }
+        
+        // Logs toggle button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Show Logs", 
+                style = MaterialTheme.typography.titleMedium
+            )
+            
+            androidx.compose.material3.Switch(
+                checked = showLogs,
+                onCheckedChange = { showLogs = it }
+            )
+        }
+        
         Button(onClick = onClose) {
             Text(text = "Close")
         }
     }
 }
 
+// Helper function to format timestamp
+private fun formatTimestamp(timestamp: Long): String {
+    val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date(timestamp))
+}
+
 /**
- * Writes "hello world" to the server characteristic
+ * Writes the provided message to the server characteristic
  */
 @SuppressLint("MissingPermission")
 private fun sendData(
     gatt: BluetoothGatt,
     characteristic: BluetoothGattCharacteristic,
+    message: String
 ) {
-    val data = "Hello world!".toByteArray()
+    val data = message.toByteArray()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         gatt.writeCharacteristic(
             characteristic,
@@ -211,7 +394,6 @@ private data class DeviceConnectionState(
 @Composable
 private fun BLEConnectEffect(
     device: BluetoothDevice,
-    lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
     onStateChange: (DeviceConnectionState) -> Unit,
 ) {
     val context = LocalContext.current
@@ -222,7 +404,7 @@ private fun BLEConnectEffect(
         mutableStateOf(DeviceConnectionState.None)
     }
 
-    DisposableEffect(lifecycleOwner, device) {
+    DisposableEffect(device) {
         // This callback will notify us when things change in the GATT connection so we can update
         // our state
         val callback = object : BluetoothGattCallback() {
@@ -295,27 +477,11 @@ private fun BLEConnectEffect(
             }
         }
 
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START) {
-                if (state.gatt != null) {
-                    // If we previously had a GATT connection let's reestablish it
-                    state.gatt?.connect()
-                } else {
-                    // Otherwise create a new GATT connection
-                    state = state.copy(gatt = device.connectGatt(context, false, callback))
-                }
-            } else if (event == Lifecycle.Event.ON_STOP) {
-                // Unless you have a reason to keep connected while in the bg you should disconnect
-                state.gatt?.disconnect()
-            }
-        }
+        // Create a new GATT connection
+        state = state.copy(gatt = device.connectGatt(context, false, callback))
 
-        // Add the observer to the lifecycle
-        lifecycleOwner.lifecycle.addObserver(observer)
-
-        // When the effect leaves the Composition, remove the observer and close the connection
+        // When the effect leaves the Composition, close the connection
         onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
             state.gatt?.close()
             state = DeviceConnectionState.None
         }

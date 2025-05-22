@@ -42,7 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -217,7 +217,6 @@ internal fun BluetoothDeviceItem(
 @Composable
 private fun BluetoothScanEffect(
     scanSettings: ScanSettings,
-    lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
     onScanFailed: (Int) -> Unit,
     onDeviceFound: (device: ScanResult) -> Unit,
 ) {
@@ -231,7 +230,7 @@ private fun BluetoothScanEffect(
 
     val currentOnDeviceFound by rememberUpdatedState(onDeviceFound)
 
-    DisposableEffect(lifecycleOwner, scanSettings) {
+    DisposableEffect(scanSettings) {
         val leScanCallback: ScanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 super.onScanResult(callbackType, result)
@@ -244,21 +243,10 @@ private fun BluetoothScanEffect(
             }
         }
 
-        val observer = LifecycleEventObserver { _, event ->
-            // Start scanning once the app is in foreground and stop when in background
-            if (event == Lifecycle.Event.ON_START) {
-                adapter.bluetoothLeScanner.startScan(null, scanSettings, leScanCallback)
-            } else if (event == Lifecycle.Event.ON_STOP) {
-                adapter.bluetoothLeScanner.stopScan(leScanCallback)
-            }
-        }
+        // Start scanning
+        adapter.bluetoothLeScanner.startScan(null, scanSettings, leScanCallback)
 
-        // Add the observer to the lifecycle
-        lifecycleOwner.lifecycle.addObserver(observer)
-
-        // When the effect leaves the Composition, remove the observer and stop scanning
         onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
             adapter.bluetoothLeScanner.stopScan(leScanCallback)
         }
     }

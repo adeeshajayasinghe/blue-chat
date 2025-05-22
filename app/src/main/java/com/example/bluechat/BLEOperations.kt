@@ -41,8 +41,8 @@ val BLE_OPERATIONS by lazy {
     listOf(
         ComposableSampleDemo(
             id = "create-gatt-server",
-            name = "Create a GATT server",
-            description = "Shows how to create a GATT server and communicate with the GATT client",
+            name = "Host a Chat",
+            description = "Start a chat session that other devices can join",
             documentation = "https://developer.android.com/reference/android/bluetooth/BluetoothGattServer",
             tags = listOf("Bluetooth"),
             content = {
@@ -54,8 +54,8 @@ val BLE_OPERATIONS by lazy {
         ),
         ComposableSampleDemo(
             id = "connect-gatt-server",
-            name = "Connect to a GATT server",
-            description = "Shows how to connect to a GATT server hosted by the BLE device and perform simple operations",
+            name = "Join a Chat",
+            description = "Connect to an existing chat session hosted by another device",
             documentation = "https://developer.android.com/guide/topics/connectivity/bluetooth/connect-gatt-server",
             tags = listOf("Bluetooth"),
             content = {
@@ -67,8 +67,8 @@ val BLE_OPERATIONS by lazy {
         ),
         ComposableSampleDemo(
             id = "find-devices",
-            name = "Find devices",
-            description = "This example will demonstrate how to scanning for Low Energy Devices",
+            name = "Find Nearby Devices",
+            description = "Discover Bluetooth devices available for chat",
             documentation = "https://developer.android.com/guide/topics/connectivity/bluetooth",
             tags = listOf("Bluetooth"),
             content = {
