@@ -50,7 +50,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bluechat.ble.operations.DeviceConnectionState
 import com.example.bluechat.ble.operations.sendData
 import com.example.bluechat.data.Message
-import com.example.bluechat.server.GATTServerService.Companion.BROADCAST_UUID
 import com.example.bluechat.server.GATTServerService.Companion.CHARACTERISTIC_UUID
 import com.example.bluechat.server.GATTServerService.Companion.SERVICE_UUID
 import com.example.bluechat.viewmodel.ChatViewModel
@@ -77,7 +76,6 @@ fun ChatHistoryScreen(
     var connectionState by remember { mutableStateOf<DeviceConnectionState?>(null) }
     val context = LocalContext.current
     val adapter = context.getSystemService(BluetoothManager::class.java).adapter
-    val broadcastUuid = ParcelUuid(BROADCAST_UUID)
 
     // Load messages when the screen is first displayed
     LaunchedEffect(deviceId) {
