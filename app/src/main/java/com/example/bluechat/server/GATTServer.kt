@@ -111,95 +111,95 @@ internal fun GATTServerScreen() {
         }
         
         // Chat section
-        if (enableServer) {
-            Text(
-                text = "Chat Messages", 
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-            )
-            
-            if (messages.isNotEmpty()) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                ) {
-                    items(messages) { message ->
-                        androidx.compose.material3.Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = if (message.isSent) "Server" else message.senderId,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = formatTimestamp(message.timestamp.time),
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
-                                Text(
-                                    text = message.content,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            } else {
-                Text(
-                    text = "No messages received yet",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-            
-            // Add clear messages button
-            Button(
-                onClick = { 
-                    scope.launch {
-                        repository.deleteAllMessages()
-                    }
-                },
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Text("Clear Messages")
-            }
-            
-            // Logs toggle button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Server Logs", 
-                    style = MaterialTheme.typography.titleMedium
-                )
-                
-                androidx.compose.material3.Switch(
-                    checked = showLogs,
-                    onCheckedChange = { showLogs = it }
-                )
-            }
-            
-            // Only show logs if toggle is enabled
-            if (showLogs) {
-                Text(text = logs)
-            }
-        }
+//        if (enableServer) {
+//            Text(
+//                text = "Chat Messages",
+//                style = MaterialTheme.typography.titleMedium,
+//                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+//            )
+//
+//            if (messages.isNotEmpty()) {
+//                LazyColumn(
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .height(200.dp)
+//                ) {
+//                    items(messages) { message ->
+//                        androidx.compose.material3.Card(
+//                            modifier = Modifier
+//                                .fillMaxWidth()
+//                                .padding(vertical = 4.dp)
+//                        ) {
+//                            Column(
+//                                modifier = Modifier.padding(12.dp)
+//                            ) {
+//                                Row(
+//                                    modifier = Modifier.fillMaxWidth(),
+//                                    horizontalArrangement = Arrangement.SpaceBetween
+//                                ) {
+//                                    Text(
+//                                        text = if (message.isSent) "Server" else message.senderId,
+//                                        style = MaterialTheme.typography.labelMedium,
+//                                        color = MaterialTheme.colorScheme.primary
+//                                    )
+//                                    Text(
+//                                        text = formatTimestamp(message.timestamp.time),
+//                                        style = MaterialTheme.typography.labelSmall
+//                                    )
+//                                }
+//                                Text(
+//                                    text = message.content,
+//                                    style = MaterialTheme.typography.bodyMedium,
+//                                    modifier = Modifier.padding(top = 4.dp)
+//                                )
+//                            }
+//                        }
+//                    }
+//                }
+//            } else {
+//                Text(
+//                    text = "No messages received yet",
+//                    style = MaterialTheme.typography.bodyMedium,
+//                    modifier = Modifier.padding(vertical = 8.dp)
+//                )
+//            }
+//
+//            // Add clear messages button
+//            Button(
+//                onClick = {
+//                    scope.launch {
+//                        repository.deleteAllMessages()
+//                    }
+//                },
+//                modifier = Modifier.padding(top = 8.dp)
+//            ) {
+//                Text("Clear Messages")
+//            }
+//
+//            // Logs toggle button
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(vertical = 8.dp),
+//                horizontalArrangement = Arrangement.SpaceBetween,
+//                verticalAlignment = Alignment.CenterVertically
+//            ) {
+//                Text(
+//                    text = "Server Logs",
+//                    style = MaterialTheme.typography.titleMedium
+//                )
+//
+//                androidx.compose.material3.Switch(
+//                    checked = showLogs,
+//                    onCheckedChange = { showLogs = it }
+//                )
+//            }
+//
+//            // Only show logs if toggle is enabled
+//            if (showLogs) {
+//                Text(text = logs)
+//            }
+//        }
     }
 }
 
