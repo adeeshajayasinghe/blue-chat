@@ -1,5 +1,5 @@
 package com.example.bluechat
-
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -31,12 +31,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 
 @Composable
 fun FrontPageScreen(
     onGetStartedClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Automatically proceed after delay
+    LaunchedEffect(Unit) {
+        delay(1200)
+        onGetStartedClick()
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -104,44 +111,44 @@ fun FrontPageScreen(
             // Middle spacer
             Spacer(modifier = Modifier.weight(0.5f))
 
-            // Single larger button
-            Button(
-                onClick = onGetStartedClick,
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(50)),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent
-                ),
-                elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 4.dp,
-                    pressedElevation = 8.dp
-                ),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.secondary
-                                )
-                            ),
-                            shape = RoundedCornerShape(28.dp)
-                        )
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Get Started",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            }
+//            // Single larger button
+//            Button(
+//                onClick = onGetStartedClick,
+//                modifier = Modifier
+//                    .fillMaxWidth(0.8f)
+//                    .height(56.dp)
+//                    .clip(RoundedCornerShape(50)),
+//                shape = RoundedCornerShape(28.dp),
+//                colors = ButtonDefaults.buttonColors(
+//                    containerColor = Color.Transparent
+//                ),
+//                elevation = ButtonDefaults.buttonElevation(
+//                    defaultElevation = 4.dp,
+//                    pressedElevation = 8.dp
+//                ),
+//                contentPadding = PaddingValues(0.dp)
+//            ) {
+//                Box(
+//                    modifier = Modifier
+//                        .background(
+//                            Brush.horizontalGradient(
+//                                colors = listOf(
+//                                    MaterialTheme.colorScheme.primary,
+//                                    MaterialTheme.colorScheme.secondary
+//                                )
+//                            ),
+//                            shape = RoundedCornerShape(28.dp)
+//                        )
+//                        .fillMaxSize(),
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Text(
+//                        text = "Get Started",
+//                        style = MaterialTheme.typography.titleMedium,
+//                        color = MaterialTheme.colorScheme.onPrimary
+//                    )
+//                }
+//            }
 
             // Bottom spacer
             Spacer(modifier = Modifier.height(48.dp))
