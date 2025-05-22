@@ -1,30 +1,17 @@
 package com.example.bluechat
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -38,9 +25,15 @@ fun FrontPageScreen(
     onGetStartedClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showLogo by remember { mutableStateOf(false) }
+    var showText by remember { mutableStateOf(false) }
+
     // Automatically proceed after delay
     LaunchedEffect(Unit) {
-        delay(1200)
+        showLogo = true
+        delay(400)
+        showText = true
+        delay(1100)
         onGetStartedClick()
     }
 
@@ -75,12 +68,17 @@ fun FrontPageScreen(
             Spacer(modifier = Modifier.weight(0.5f))
 
             // Logo without border
+            val slideOffset by animateDpAsState(
+                targetValue = if (showLogo) 0.dp else 300.dp,
+                animationSpec = tween(durationMillis = 600, easing = EaseOutCubic)
+            )
             Card(
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 modifier = Modifier
                     .size(220.dp)
                     .clip(RoundedCornerShape(16.dp))
+                    .offset(y = slideOffset)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.bluechat),
@@ -93,20 +91,29 @@ fun FrontPageScreen(
             }
 
             // App Name
-            Text(
-                text = "BlueChat",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = 16.dp)
+            val textAlpha by animateFloatAsState(
+                targetValue = if (showText) 1f else 0f,
+                animationSpec = tween(durationMillis = 600)
             )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.alpha(textAlpha)
+            ) {
+                Text(
+                    text = "BlueChat",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
 
-            // Catchy sentence
-            Text(
-                text = "Connect Instantly, Chat Seamlessly",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                modifier = Modifier.padding(top = 8.dp)
-            )
+                // Catchy sentence
+                Text(
+                    text = "Connect Instantly, Chat Seamlessly",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
 
             // Middle spacer
             Spacer(modifier = Modifier.weight(0.5f))
