@@ -80,19 +80,19 @@ val BLE_OPERATIONS by lazy {
                 }
             },
         ),
-        ComposableSampleDemo(
-            id = "find-devices",
-            name = "Find Nearby Devices",
-            description = "Discover Bluetooth devices available for chat",
-            documentation = "https://developer.android.com/guide/topics/connectivity/bluetooth",
-            tags = listOf("Bluetooth"),
-            content = {
-                MinSdkBox(minSdk = Build.VERSION_CODES.M) {
-                    //noinspection NewApi
-                    FindBLEDevices()
-                }
-            },
-        ),
+//        ComposableSampleDemo(
+//            id = "find-devices",
+//            name = "Find Nearby Devices",
+//            description = "Discover Bluetooth devices available for chat",
+//            documentation = "https://developer.android.com/guide/topics/connectivity/bluetooth",
+//            tags = listOf("Bluetooth"),
+//            content = {
+//                MinSdkBox(minSdk = Build.VERSION_CODES.M) {
+//                    //noinspection NewApi
+//                    FindBLEDevices()
+//                }
+//            },
+//        ),
         ComposableSampleDemo(
             id = "contact-list",
             name = "Contact List",

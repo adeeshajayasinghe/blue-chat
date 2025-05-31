@@ -1,0 +1,11 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Black background -->
+    <item android:drawable="@android:color/black" />
+
+    <!-- Centered logo -->
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/bluechat" />
+    </item>
+</layer-list>
