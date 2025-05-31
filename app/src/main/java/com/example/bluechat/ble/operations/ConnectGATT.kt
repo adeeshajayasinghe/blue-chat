@@ -53,6 +53,7 @@ import com.example.bluechat.data.Message
 import java.util.Date
 import com.example.bluechat.data.Device
 import com.example.bluechat.server.GATTServerService
+import androidx.compose.foundation.background
 
 @OptIn(ExperimentalAnimationApi::class)
 @SuppressLint("MissingPermission")
@@ -185,210 +186,73 @@ fun ConnectDeviceScreen(device: BluetoothDevice, broadcastUuid: String?, onClose
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(text = "Devices details", style = MaterialTheme.typography.headlineSmall)
-        Text(text = "Name: ${device.name} (${device.address})")
-        Text(text = "Status: ${state?.connectionState?.toConnectionStateString()}")
-        Text(text = "MTU: ${state?.mtu}")
-        
-        // Only show services if logs are enabled
-        if (showLogs) {
-            Text(text = "Services: ${state?.services?.joinToString { it.uuid.toString() + " " + it.type }}")
-        }
-        
-        // Chat interface section
-        Text(
-            text = "Chat", 
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 16.dp)
-        )
-        
-        // Display message history
-        if (messages.isNotEmpty()) {
-            androidx.compose.foundation.lazy.LazyColumn(
+        // Header section
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Device Details",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Device info card
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(messages) { message ->
-                    androidx.compose.material3.Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = if (message.isSent) "Me" else device.name ?: device.address,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (message.isSent) 
-                                        MaterialTheme.colorScheme.primary 
-                                    else 
-                                        MaterialTheme.colorScheme.secondary
-                                )
-                                Text(
-                                    text = formatTimestamp(message.timestamp.time),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                            Text(
-                                text = message.content,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Name",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = device.name ?: "Unknown Device",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Status",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = state?.connectionState?.toConnectionStateString() ?: "Unknown",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = when (state?.connectionState) {
+                            BluetoothProfile.STATE_CONNECTED -> MaterialTheme.colorScheme.primary
+                            BluetoothProfile.STATE_CONNECTING -> MaterialTheme.colorScheme.tertiary
+                            BluetoothProfile.STATE_DISCONNECTED -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurface
                         }
-                    }
+                    )
                 }
             }
-        } else {
-            Text(
-                text = "No messages yet",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-        }
-        
-        // Message input row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            androidx.compose.material3.OutlinedTextField(
-                value = messageInput,
-                onValueChange = { messageInput = it },
-                label = { Text("Type a message") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = state?.gatt != null && characteristic != null,
-                trailingIcon = {
-                    androidx.compose.material3.IconButton(
-                        onClick = {
-                            if (messageInput.isNotEmpty() && state?.gatt != null && characteristic != null) {
-                                scope.launch(Dispatchers.IO) {
-                                    sendData(state?.gatt!!, characteristic!!, messageInput)
-                                    val broadcastUuid = state?.services?.find { it.uuid == SERVICE_UUID }?.uuid.toString()
-                                    // Add sent message to database
-                                    val message = Message(
-                                        content = messageInput,
-                                        senderId = "current_user",
-                                        receiverId = device.address,
-                                        deviceUuid = broadcastUuid,
-                                        timestamp = Date(),
-                                        isSent = true
-                                    )
-                                    repository.insertMessage(message)
-                                    
-                                    // Update device's last message timestamp
-                                    repository.getDevice(device.address)?.let { existingDevice ->
-                                        repository.insertDevice(existingDevice.copy(
-                                            lastMessageTimestamp = System.currentTimeMillis()
-                                        ))
-                                    }
-                                    
-                                    messageInput = "" // Clear input after sending
-                                }
-                            }
-                        },
-                        enabled = messageInput.isNotEmpty() && state?.gatt != null && characteristic != null
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Send",
-                            tint = if (messageInput.isNotEmpty() && state?.gatt != null && characteristic != null)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                    }
-                }
-            )
-        }
-        
-        // Add a clear messages button
-        Button(
-            onClick = { 
-                scope.launch(Dispatchers.IO) {
-                    repository.deleteAllMessages()
-                }
-            },
-            modifier = Modifier.padding(top = 8.dp)
-        ) {
-            Text("Clear Messages")
-        }
-        
-        // Connection controls
-        Text(
-            text = "Connection Controls", 
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 16.dp)
-        )
-        
-        Button(
-            onClick = {
-                scope.launch(Dispatchers.IO) {
-                    if (state?.connectionState == BluetoothProfile.STATE_DISCONNECTED) {
-                        state?.gatt?.connect()
-                    }
-                    // Example on how to request specific MTUs
-                    // Note that from Android 14 onwards the system will define a default MTU and
-                    // it will only be sent once to the peripheral device
-                    state?.gatt?.requestMtu(Random.nextInt(27, 190))
-                }
-            },
-        ) {
-            Text(text = "Request MTU")
-        }
-        Button(
-            enabled = state?.gatt != null,
-            onClick = {
-                scope.launch(Dispatchers.IO) {
-                    // Once we have the connection discover the peripheral services
-                    state?.gatt?.discoverServices()
-                }
-            },
-        ) {
-            Text(text = "Discover")
-        }
-        Button(
-            enabled = state?.gatt != null && characteristic != null,
-            onClick = {
-                scope.launch(Dispatchers.IO) {
-                    state?.gatt?.readCharacteristic(characteristic)
-                }
-            },
-        ) {
-            Text(text = "Read characteristic")
-        }
-        
-        // Logs toggle button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Show Logs", 
-                style = MaterialTheme.typography.titleMedium
-            )
-            
-            androidx.compose.material3.Switch(
-                checked = showLogs,
-                onCheckedChange = { showLogs = it }
-            )
-        }
-        
-        Button(onClick = onClose) {
-            Text(text = "Close")
         }
     }
 }
